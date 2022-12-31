@@ -1,11 +1,53 @@
-import Head from 'next/head'
-import Image from 'next/image'
-import { Inter } from '@next/font/google'
-import styles from '../styles/Home.module.css'
+import Head from "next/head";
+import Image from "next/image";
+import { Inter } from "@next/font/google";
+import { FormEvent, useEffect, useState } from "react";
+import { PlusCircleIcon } from "@heroicons/react/24/solid";
+import {
+  addDoc,
+  collection,
+  DocumentData,
+  onSnapshot,
+  orderBy,
+  query,
+  serverTimestamp,
+} from "firebase/firestore";
+import db from "../firebase";
+import Todo from "../components/Todo";
 
-const inter = Inter({ subsets: ['latin'] })
+const inter = Inter({ subsets: ["latin"] });
 
 export default function Home() {
+  const [input, setInput] = useState("");
+  const [todos, setTodos] = useState<DocumentData[]>([]);
+
+  useEffect(() => {
+    // unsub to avoid multiple connection to your db...
+    return onSnapshot(
+      query(
+        collection(db, "todos"),
+        orderBy("completed", "asc"),
+        orderBy("timestamp", "asc")
+      ),
+      (snapshot) => setTodos(snapshot.docs),
+      (err) => console.error(err)
+    );
+    //return () => unsub();  const unsub //handle clenub
+  }, [db]);
+  // console.log(todos);
+
+  const addTodo = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    const copiedInput = input;
+    setInput("");
+    await addDoc(collection(db, "todos"), {
+      title: copiedInput,
+      timestamp: serverTimestamp(),
+      completed: false,
+    }).catch((error) => console.error("Error addding Document: ", error));
+  };
+
   return (
     <>
       <Head>
@@ -14,110 +56,38 @@ export default function Home() {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
-      <main className={styles.main}>
-        <div className={styles.description}>
-          <p>
-            Get started by editing&nbsp;
-            <code className={styles.code}>pages/index.tsx</code>
-          </p>
-          <div>
-            <a
-              href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              By{' '}
-              <Image
-                src="/vercel.svg"
-                alt="Vercel Logo"
-                className={styles.vercelLogo}
-                width={100}
-                height={24}
-                priority
-              />
-            </a>
-          </div>
-        </div>
-
-        <div className={styles.center}>
+      <main className="py-10 px-5 md:p-10 bg-white h-screen overflow-y-scroll">
+        {/* relative fill in parent containr */}
+        <div className="relative h-32 mx-auto mb-5 md:h-48 lg:h-64 md:mb-8 lg:mb-10">
           <Image
-            className={styles.logo}
-            src="/next.svg"
-            alt="Next.js Logo"
-            width={180}
-            height={37}
-            priority
+            className="object-contain"
+            src="https://links.papareact.com/qy0"
+            alt=""
+            fill
           />
-          <div className={styles.thirteen}>
-            <Image
-              src="/thirteen.svg"
-              alt="13"
-              width={40}
-              height={31}
-              priority
-            />
-          </div>
         </div>
-
-        <div className={styles.grid}>
-          <a
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <h2 className={inter.className}>
-              Docs <span>-&gt;</span>
-            </h2>
-            <p className={inter.className}>
-              Find in-depth information about Next.js features and&nbsp;API.
-            </p>
-          </a>
-
-          <a
-            href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <h2 className={inter.className}>
-              Learn <span>-&gt;</span>
-            </h2>
-            <p className={inter.className}>
-              Learn about Next.js in an interactive course with&nbsp;quizzes!
-            </p>
-          </a>
-
-          <a
-            href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <h2 className={inter.className}>
-              Templates <span>-&gt;</span>
-            </h2>
-            <p className={inter.className}>
-              Discover and deploy boilerplate example Next.js&nbsp;projects.
-            </p>
-          </a>
-
-          <a
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <h2 className={inter.className}>
-              Deploy <span>-&gt;</span>
-            </h2>
-            <p className={inter.className}>
-              Instantly deploy your Next.js site to a shareable URL
-              with&nbsp;Vercel.
-            </p>
-          </a>
+        <form
+          onSubmit={addTodo}
+          className="flex items-center space-x-2 max-w-lg mx-auto justify-center bg-slate-200/50 p-2 rounded-lg fixed bottom-10 left-0 right-0 z-50 shadow-xl "
+        >
+          <input
+            type="text"
+            placeholder="Enter a TODO..."
+            value={input}
+            className="flex-1 p-5 rounded-lg outline-none"
+            onChange={(e) => setInput(e.target.value)}
+          />
+          <button type="submit" disabled={!input} className="p-3 curs">
+            <PlusCircleIcon className="h-12 w-12 text-[#35E2BC] disabled:cursor-not-allowed" />
+          </button>
+        </form>
+        {/* rendering the todos */}
+        <div className="p-5 grid md:grid-cols-2 lg:grid-cols-3 gap-5 max-w-6xl mx-auto pb-64">
+          {todos?.map((todo, index) => (
+            <Todo key={todo.id} id={todo.id} index={index} todo={todo.data()} />
+          ))}
         </div>
       </main>
     </>
-  )
+  );
 }
